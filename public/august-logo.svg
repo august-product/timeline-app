@@ -1,0 +1,11 @@
+<svg width="220" height="72" viewBox="0 0 220 72" xmlns="http://www.w3.org/2000/svg">
+  <style>
+    .logo-text {
+      font-family: 'Brush Script MT', 'Great Vibes', 'Pacifico', cursive;
+      font-size: 60px;
+      font-weight: 400;
+      fill: #050505;
+    }
+  </style>
+  <text x="0" y="55" class="logo-text">August</text>
+</svg>
