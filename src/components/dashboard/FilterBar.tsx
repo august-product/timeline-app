@@ -13,8 +13,6 @@ interface FilterBarProps {
     property: string;
     product: string;
     search: string;
-    startDate: string;
-    endDate: string;
   };
   onChange: (filters: FilterBarProps['filters']) => void;
 }
@@ -37,7 +35,7 @@ export const FilterBar = ({
         value={filters.region}
         onChange={(event) => update('region', event.target.value)}
       >
-        <option value="">All regions</option>
+        <option value="">Regions</option>
         {regions.map((region) => (
           <option key={region} value={region}>
             {region}
@@ -49,7 +47,7 @@ export const FilterBar = ({
         value={filters.collection}
         onChange={(event) => update('collection', event.target.value)}
       >
-        <option value="">All collections</option>
+        <option value="">Collections</option>
         {collections.map((collection) => (
           <option key={collection} value={collection}>
             {collection}
@@ -74,31 +72,13 @@ export const FilterBar = ({
         value={filters.product}
         onChange={(event) => update('product', event.target.value)}
       >
-        <option value="">All products</option>
+        <option value="">Products</option>
         {products.map((product) => (
           <option key={product} value={product}>
             {product}
           </option>
         ))}
       </select>
-      <label className="flex flex-1 flex-col text-xs font-semibold uppercase tracking-wide text-[var(--august-ink)]">
-        Start after
-        <input
-          type="date"
-          className="mt-1 rounded-xl border border-[#d8d0c8] bg-[var(--august-card)] px-3 py-2 text-sm text-[var(--august-ink)]"
-          value={filters.startDate}
-          onChange={(event) => update('startDate', event.target.value)}
-        />
-      </label>
-      <label className="flex flex-1 flex-col text-xs font-semibold uppercase tracking-wide text-[var(--august-ink)]">
-        End before
-        <input
-          type="date"
-          className="mt-1 rounded-xl border border-[#d8d0c8] bg-[var(--august-card)] px-3 py-2 text-sm text-[var(--august-ink)]"
-          value={filters.endDate}
-          onChange={(event) => update('endDate', event.target.value)}
-        />
-      </label>
       <input
         className="flex-1 rounded-xl border border-[#d8d0c8] bg-[var(--august-card)] px-3 py-2 text-sm text-[var(--august-ink)] placeholder:text-[var(--august-muted)]"
         placeholder="Search property or PM"

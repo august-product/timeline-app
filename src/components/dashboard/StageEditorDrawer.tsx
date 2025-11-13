@@ -37,14 +37,25 @@ export const StageEditorDrawer = ({ timeline, open, onClose, onSave }: StageEdit
     setFormState(deriveInitialState(timeline));
   }, [open, timeline]);
 
-const handleChange = (stageKey: StageKey, field: 'actualStart' | 'actualEnd', value: string) => {
-    setFormState((prev) => ({
-      ...prev,
-      [stageKey]: {
+  const handleChange = (stageKey: StageKey, field: 'actualStart' | 'actualEnd', value: string) => {
+    setFormState((prev) => {
+      const nextStage = {
         ...prev[stageKey],
         [field]: value,
-      },
-    }));
+      };
+
+      if (field === 'actualStart' && value) {
+        const autopEnd = deriveAutoEndDate(timeline, stageKey, value);
+        if (autopEnd) {
+          nextStage.actualEnd = autopEnd;
+        }
+      }
+
+      return {
+        ...prev,
+        [stageKey]: nextStage,
+      };
+    });
   };
 
   const handleCopyForecast = (stageKey: StageKey) => {
@@ -84,10 +95,15 @@ const handleChange = (stageKey: StageKey, field: 'actualStart' | 'actualEnd', va
 
   return (
     <div className="fixed inset-0 z-40 flex">
-      <div className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm" onClick={onClose} />
-      <aside className="ml-auto flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
+      <button
+        type="button"
+        className="flex-1 bg-slate-900/40"
+        aria-label="Close stage editor"
+        onClick={onClose}
+      />
+      <aside className="flex h-full w-full max-w-xl flex-col overflow-y-auto bg-white shadow-2xl">
         <div className="border-b border-slate-100 px-6 py-5">
-          <p className="text-xs font-semibold uppercase tracking-widest text-blue-500">Edit schedule</p>
+          <p className="text-sm font-semibold text-[#8b908d]">Edit schedule</p>
           <h2 className="text-xl font-semibold text-slate-900">{timeline.property.name}</h2>
           <p className="text-sm text-slate-700">
             Adjust actual start/end dates. Downstream stages auto-shift when a date moves.
@@ -105,13 +121,19 @@ const handleChange = (stageKey: StageKey, field: 'actualStart' | 'actualEnd', va
                     <p className="text-sm font-semibold text-slate-900">{stage.label}</p>
                     <p className="text-xs text-slate-600">Owner · {stage.owner}</p>
                   </div>
-                  <button
-                    type="button"
-                    className="text-xs font-medium text-blue-600 underline underline-offset-4"
-                    onClick={() => handleCopyForecast(stage.key)}
-                  >
-                    Copy forecast
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      className="text-xs font-medium text-blue-600 underline underline-offset-4"
+                      onClick={() => handleCopyForecast(stage.key)}
+                      title="Copy forecast dates into the Actual Start/End fields."
+                    >
+                      Copy forecast
+                    </button>
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500 shadow-sm">
+                      Sets actual start & end to the current forecast
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="text-xs font-semibold uppercase tracking-wide text-slate-900">
@@ -177,3 +199,31 @@ const deriveInitialState = (timeline: PropertyTimelineView | null): StageFormSta
   }
   return base;
 };
+
+const deriveAutoEndDate = (
+  timeline: PropertyTimelineView | null,
+  stageKey: StageKey,
+  startValue: string,
+) => {
+  if (!timeline) return undefined;
+  const stageDetail = timeline.stages.find((entry) => entry.key === stageKey);
+  if (!stageDetail) return undefined;
+  const durationDays = Math.max(1, Math.round(stageDetail.durationWeeks * 7));
+  const startDate = toStartOfDay(startValue);
+  if (!startDate) return undefined;
+  return toISODate(addDays(startDate, durationDays));
+};
+
+const toStartOfDay = (value: string) => {
+  if (!value) return null;
+  const date = new Date(`${value}T00:00:00Z`);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const addDays = (date: Date, days: number) => {
+  const copy = new Date(date);
+  copy.setUTCDate(copy.getUTCDate() + days);
+  return copy;
+};
+
+const toISODate = (date: Date) => date.toISOString().slice(0, 10);

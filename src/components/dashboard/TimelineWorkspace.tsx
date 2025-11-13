@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FilterBar } from './FilterBar';
 import { PortfolioSummary } from './PortfolioSummary';
 import { mockProperties, mockRuleSets } from '@/data/mockData';
@@ -10,9 +10,37 @@ import type {
   PropertyTimelineView,
   RuleSet,
   StageActual,
+  StageKey,
 } from '@/lib/types';
 import { TimelineMatrix } from '@/components/timeline/TimelineMatrix';
 import { StageEditorDrawer, type StageEditorUpdate } from './StageEditorDrawer';
+
+const sortValues = (values: string[]) =>
+  Array.from(new Set(values.filter(Boolean))).sort((a, b) =>
+    a.localeCompare(b, 'en', { sensitivity: 'base' }),
+  );
+
+const ADDITIONAL_REGIONS = ['South of France'];
+const ADDITIONAL_COLLECTIONS = [
+  'CC01',
+  'GPAT01',
+  'GPAT02',
+  'PATC01',
+  'PATC02',
+  'PATC03',
+  'PATC04',
+  'PATC05',
+  'PC01',
+  'PC02',
+  'PC03',
+  'PR01',
+  'SC04',
+  'SC05',
+  'SC06',
+  'SC07',
+  'SC08',
+];
+const ADDITIONAL_PRODUCTS = ['City Collection', 'Grand Pied á Terre', 'Pied à Terre'];
 
 interface FilterState {
   region: string;
@@ -20,8 +48,6 @@ interface FilterState {
   property: string;
   product: string;
   search: string;
-  startDate: string;
-  endDate: string;
 }
 
 export const TimelineWorkspace = () => {
@@ -33,8 +59,6 @@ export const TimelineWorkspace = () => {
     property: '',
     product: '',
     search: '',
-    startDate: '',
-    endDate: '',
   }));
   const [editingTarget, setEditingTarget] = useState<{ id: string; nonce: number } | null>(null);
 
@@ -45,8 +69,6 @@ export const TimelineWorkspace = () => {
 
   const filteredTimelines = useMemo(() => {
     const searchTerm = filters.search.toLowerCase();
-    const startDate = filters.startDate ? new Date(filters.startDate) : null;
-    const endDate = filters.endDate ? new Date(filters.endDate) : null;
     return timelines.filter((timeline) => {
       const matchesRegion = !filters.region || timeline.property.region === filters.region;
       const matchesCollection =
@@ -59,38 +81,40 @@ export const TimelineWorkspace = () => {
         timeline.property.name.toLowerCase().includes(searchTerm) ||
         timeline.property.pm.toLowerCase().includes(searchTerm);
 
-      const propertyStart = new Date(timeline.property.groupClosingDate);
-      const matchesStart = !startDate || propertyStart >= startDate;
-      const matchesEnd = !endDate || propertyStart <= endDate;
-
       return (
         matchesRegion &&
         matchesCollection &&
         matchesProduct &&
         matchesProperty &&
-        matchesSearch &&
-        matchesStart &&
-        matchesEnd
+        matchesSearch
       );
     });
   }, [filters, timelines]);
 
   const regionOptions = useMemo(
-    () => [...new Set(properties.map((property) => property.region))],
+    () => sortValues([...properties.map((property) => property.region), ...ADDITIONAL_REGIONS]),
     [properties],
   );
+
   const collectionOptions = useMemo(
-    () => [...new Set(properties.map((property) => property.collectionName))],
+    () =>
+      sortValues([
+        ...properties.map((property) => property.collectionName),
+        ...ADDITIONAL_COLLECTIONS,
+      ]),
     [properties],
   );
   const propertyOptions = useMemo(() => {
     if (!filters.collection) return [];
-    return properties
-      .filter((property) => property.collectionName === filters.collection)
-      .map((property) => property.name);
+    return sortValues(
+      properties
+        .filter((property) => property.collectionName === filters.collection)
+        .map((property) => property.name),
+    );
   }, [filters.collection, properties]);
   const productOptions = useMemo(
-    () => [...new Set(properties.map((property) => property.productType))],
+    () =>
+      sortValues([...properties.map((property) => property.productType), ...ADDITIONAL_PRODUCTS]),
     [properties],
   );
 
@@ -141,6 +165,29 @@ export const TimelineWorkspace = () => {
     setEditingTarget({ id: propertyId, nonce: Date.now() });
   };
 
+  const handleStagePositionChange = useCallback(
+    (propertyId: string, stageKey: StageKey, actualStart: string, actualEnd: string) => {
+      setProperties((prev) =>
+        prev.map((property) => {
+          if (property.id !== propertyId) return property;
+          const nextActuals = property.stageActuals ? [...property.stageActuals] : [];
+          const payload = { stage: stageKey, actualStart, actualEnd };
+          const existingIndex = nextActuals.findIndex((entry) => entry.stage === stageKey);
+          if (existingIndex >= 0) {
+            nextActuals[existingIndex] = payload;
+          } else {
+            nextActuals.push(payload);
+          }
+          return {
+            ...property,
+            stageActuals: nextActuals,
+          };
+        }),
+      );
+    },
+    [],
+  );
+
 
   return (
     <div className="space-y-6">
@@ -160,7 +207,11 @@ export const TimelineWorkspace = () => {
           No properties match the current filters. Choose another collection to populate the board.
         </div>
       ) : (
-        <TimelineMatrix timelines={filteredTimelines} onEditProperty={openEditor} />
+        <TimelineMatrix
+          timelines={filteredTimelines}
+          onEditProperty={openEditor}
+          onStageChange={handleStagePositionChange}
+        />
       )}
 
       {editingTimeline && (
